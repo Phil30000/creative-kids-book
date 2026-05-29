@@ -204,3 +204,60 @@ function renderPreview(){
             const safe = escapeHTML(l);
             if(l.trim().startsWith("#")){
                 html += "<div class='chapter'>"+safe.replace("#","")+"</div>";
+            }else{
+                html += safe + "<br>";
+            }
+        });
+        if(i<parts.length-1) html += "<div class='chapter'></div>";
+    });
+    preview.innerHTML = html;
+}
+
+function openPrintSelector(){
+    if(!currentProfile?.books?.length){ alert("Keine Bücher vorhanden"); return; }
+    const options = currentProfile.books.map((b,i)=>`${i+1}: ${b.title}`).join("\n");
+    const choice = prompt("Welches Buch drucken?\n\n"+options);
+    if(!choice) return;
+    const index = parseInt(choice)-1;
+    if(index<0||index>=currentProfile.books.length){ alert("Ungültige Auswahl"); return; }
+    currentBook = currentProfile.books[index];
+    text.value = currentBook.text;
+    renderPreview();
+    printArea.innerHTML = preview.innerHTML;
+    setTimeout(()=>window.print(),100);
+}
+
+function exportData(){
+    const blob = new Blob([JSON.stringify(profiles,null,2)],{type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "books.json";
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importData(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e){
+        try{
+            const imported = JSON.parse(e.target.result);
+            if(!Array.isArray(imported)) throw new Error();
+            profiles = imported;
+            save();
+            renderProfiles();
+            alert("Import erfolgreich");
+        }catch(err){
+            alert("Ungültige Datei");
+        }
+    };
+    reader.readAsText(file);
+}
+
+};
+</script>
+
+</body>
+</html>
