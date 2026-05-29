@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#4aa3ff">
-<link rel="apple-touch-icon" href="icon.png"> <!-- optional eigenes Icon -->
+<link rel="apple-touch-icon" href="icon.png">
 <title>Creative Kids Book</title>
 
 <style>
@@ -27,12 +27,16 @@ button:hover{ background:var(--blue-dark); }
 button:active{ transform:scale(0.98); }
 input, textarea{ width:100%; padding:14px; border-radius:14px; border:1px solid #cfe5ff; font-size:16px; margin-bottom:10px; }
 textarea{ min-height:60vh; resize:vertical; line-height:1.5; }
-.item{ background:#f3f8ff; border-radius:12px; padding:14px; margin:8px 0; cursor:pointer; transition:0.2s; }
+.item{ background:#f3f8ff; border-radius:12px; padding:14px; margin:8px 0; cursor:pointer; transition:0.2s; display:flex; justify-content:space-between; align-items:center; }
 .item:hover{ background:#e4f1ff; }
+.item button{ background:#ff4d4d; margin:0; padding:4px 10px; font-size:14px; border-radius:8px; }
 .hidden{ display:none; }
 .editorLayout{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 .previewBox{ background:white; padding:16px; border-radius:12px; min-height:60vh; overflow:auto; border:1px solid #e2ecff; }
 .chapter{ font-size:28px; font-weight:bold; margin:40px 0 20px; break-before:page; }
+.chapterList{ max-height:200px; overflow:auto; margin:10px 0; border:1px solid #cfe5ff; border-radius:12px; background:#f9faff; padding:10px; }
+.chapterList div{ padding:6px; cursor:pointer; border-radius:8px; margin:2px 0; }
+.chapterList div:hover{ background:#e4f1ff; }
 @media(max-width:1000px){ .editorLayout{ grid-template-columns:1fr; } header{ font-size:22px; } button{ width:100%; margin:6px 0; } }
 @media print{ body{ background:white; } header, .container{ display:none !important; } #printArea{ display:block !important; padding:30px; font-size:14pt; line-height:1.6; } .chapter{ break-before:page; } }
 </style>
@@ -69,9 +73,12 @@ textarea{ min-height:60vh; resize:vertical; line-height:1.5; }
 <div class="editorLayout">
 <div>
 <textarea id="text"></textarea>
-<button id="chapterBtn">📖 Kapitel</button>
+<div>
+<button id="chapterBtn">📖 Kapitel einfügen</button>
 <button id="saveBtn">💾 Speichern</button>
 <button id="closeBtn">❌ Schließen</button>
+</div>
+<div class="chapterList" id="chapterList"></div>
 </div>
 <div class="previewBox" id="preview"></div>
 </div>
@@ -82,121 +89,71 @@ textarea{ min-height:60vh; resize:vertical; line-height:1.5; }
 <div id="printArea" style="display:none"></div>
 
 <script>
-window.onload = function() {
+window.onload=function(){
 
-    let profiles = JSON.parse(localStorage.getItem("profiles")) || [];
-    let currentProfile = null;
-    let currentBook = null;
+// ===== Daten & Variablen =====
+let profiles=JSON.parse(localStorage.getItem("profiles"))||[];
+let currentProfile=null;
+let currentBook=null;
 
-    const profileInput = document.getElementById("profileInput");
-    const profileList = document.getElementById("profileList");
-    const bookList = document.getElementById("bookList");
-    const preview = document.getElementById("preview");
-    const text = document.getElementById("text");
-    const bookTitle = document.getElementById("bookTitle");
-    const printArea = document.getElementById("printArea");
+const profileInput=document.getElementById("profileInput");
+const profileList=document.getElementById("profileList");
+const bookList=document.getElementById("bookList");
+const preview=document.getElementById("preview");
+const text=document.getElementById("text");
+const bookTitle=document.getElementById("bookTitle");
+const chapterList=document.getElementById("chapterList");
+const printArea=document.getElementById("printArea");
 
-    const profileView = document.getElementById("profileView");
-    const bookView = document.getElementById("bookView");
-    const editorView = document.getElementById("editorView");
+const profileView=document.getElementById("profileView");
+const bookView=document.getElementById("bookView");
+const editorView=document.getElementById("editorView");
 
-    function save(){ localStorage.setItem("profiles", JSON.stringify(profiles)); }
+// ===== Persistenz =====
+function save(){ localStorage.setItem("profiles",JSON.stringify(profiles)); }
 
-    // BUTTON EVENTS
-    document.getElementById("createProfileBtn").onclick = function(){
-        const name = profileInput.value.trim();
-        if(!name) return;
-        profiles.push({name, books:[]});
-        save();
-        profileInput.value="";
-        renderProfiles();
-    };
+// ===== Buttons =====
+document.getElementById("createProfileBtn").onclick=function(){
+    const name=profileInput.value.trim(); if(!name)return;
+    profiles.push({id:Date.now(),name:name,books:[]});
+    save(); profileInput.value=""; renderProfiles();
+};
 
-    document.getElementById("backBtn").onclick = function(){
-        bookView.classList.add("hidden");
-        editorView.classList.add("hidden");
-        profileView.classList.remove("hidden");
-    };
+document.getElementById("backBtn").onclick=function(){
+    bookView.classList.add("hidden"); editorView.classList.add("hidden"); profileView.classList.remove("hidden");
+};
+document.getElementById("newBookBtn").onclick=function(){
+    if(!currentProfile)return;
+    currentProfile.books.push({id:Date.now(),title:"Neues Buch",text:""});
+    save(); renderBooks();
+};
+document.getElementById("saveBtn").onclick=function(){
+    if(!currentBook)return;
+    currentBook.title=bookTitle.value; currentBook.text=text.value;
+    save(); closeEditor();
+};
+document.getElementById("closeBtn").onclick=closeEditor;
+document.getElementById("chapterBtn").onclick=insertChapter;
+document.getElementById("exportBtn").onclick=exportData;
+document.getElementById("printBtn").onclick=openPrintSelector;
+document.getElementById("importBtn").onclick=()=>document.getElementById("fileImport").click();
+document.getElementById("fileImport").addEventListener("change",importData);
+text.addEventListener("input",()=>{renderPreview(); autoSave();});
 
-    document.getElementById("newBookBtn").onclick = function(){
-        if(!currentProfile) return;
-        currentProfile.books.push({title:"Neues Buch", text:""});
-        save();
-        renderBooks();
-    };
+// ===== Funktionen =====
+function renderProfiles(){
+    profileList.innerHTML="";
+    profiles.forEach((p,i)=>{
+        const div=document.createElement("div"); div.className="item"; 
+        div.innerHTML=`<span>👶 ${p.name}</span>`;
+        const delBtn=document.createElement("button"); delBtn.textContent="🗑"; delBtn.onclick=(e)=>{
+            e.stopPropagation(); if(confirm("Profil löschen?")){ profiles.splice(i,1); save(); renderProfiles(); }
+        };
+        div.appendChild(delBtn);
+        div.onclick=function(){ currentProfile=p; profileView.classList.add("hidden"); bookView.classList.remove("hidden"); renderBooks();};
+        profileList.appendChild(div);
+    });
+}
 
-    document.getElementById("saveBtn").onclick = function(){
-        if(!currentBook) return;
-        currentBook.title = bookTitle.value;
-        currentBook.text = text.value;
-        save();
-        closeEditor();
-    };
-
-    document.getElementById("closeBtn").onclick = closeEditor;
-    document.getElementById("chapterBtn").onclick = insertChapter;
-    document.getElementById("exportBtn").onclick = exportData;
-    document.getElementById("printBtn").onclick = openPrintSelector;
-    document.getElementById("importBtn").onclick = ()=>document.getElementById("fileImport").click();
-    document.getElementById("fileImport").addEventListener("change", importData);
-    text.addEventListener("input", renderPreview);
-
-    // FUNCTIONS
-    function renderProfiles(){
-        profileList.innerHTML="";
-        profiles.forEach((p,i)=>{
-            const div = document.createElement("div");
-            div.className="item";
-            div.textContent="👶 "+p.name;
-            div.onclick=function(){
-                currentProfile = profiles[i];
-                profileView.classList.add("hidden");
-                bookView.classList.remove("hidden");
-                renderBooks();
-            };
-            profileList.appendChild(div);
-        });
-    }
-
-    function renderBooks(){
-        if(!currentProfile) return;
-        bookList.innerHTML="";
-        currentProfile.books.forEach((b,i)=>{
-            const div = document.createElement("div");
-            div.className="item";
-            div.textContent="📖 "+b.title;
-            div.onclick=function(){
-                currentBook = currentProfile.books[i];
-                bookView.classList.add("hidden");
-                editorView.classList.remove("hidden");
-                bookTitle.value = currentBook.title;
-                text.value = currentBook.text;
-                renderPreview();
-            };
-            bookList.appendChild(div);
-        });
-    }
-
-    function closeEditor(){
-        editorView.classList.add("hidden");
-        bookView.classList.remove("hidden");
-    }
-
-    function insertChapter(){
-        if(!currentBook) return;
-        const t = prompt("Kapitelname");
-        if(!t) return;
-        const pos = text.selectionStart;
-        text.value = text.value.slice(0,pos) + "\n\n##CHAPTER##"+t+"\n\n" + text.value.slice(pos);
-        renderPreview();
-    }
-
-    function renderPreview(){
-        if(!text.value) { preview.innerHTML=""; return; }
-        const parts = text.value.split("##CHAPTER##");
-        let html = "";
-        parts.forEach((part,i)=>{
-            const lines = part.split("\n");
-            lines.forEach(l=>{
-                if(l.trim().startsWith("#")){
-                    html += `<div class='chapter'>${l
+function renderBooks(){
+    if
