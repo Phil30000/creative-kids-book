@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#4aa3ff">
@@ -78,6 +78,8 @@ textarea{ min-height:60vh; resize:vertical; line-height:1.5; }
 <div id="printArea" style="display:none"></div>
 
 <script>
+window.onload = function() {
+
 let profiles = JSON.parse(localStorage.getItem("profiles")) || [];
 let currentProfile = null;
 let currentBook = null;
@@ -89,6 +91,10 @@ const preview = document.getElementById("preview");
 const text = document.getElementById("text");
 const bookTitle = document.getElementById("bookTitle");
 const printArea = document.getElementById("printArea");
+
+const profileView = document.getElementById("profileView");
+const bookView = document.getElementById("bookView");
+const editorView = document.getElementById("editorView");
 
 document.getElementById("createProfileBtn").onclick = createProfile;
 document.getElementById("backBtn").onclick = backToProfiles;
@@ -104,15 +110,97 @@ text.addEventListener("input", renderPreview);
 
 renderProfiles();
 
-function createProfile(){ const name = profileInput.value.trim(); if(!name) return; profiles.push({name,books:[]}); save(); profileInput.value=""; renderProfiles(); }
-function renderProfiles(){ profileList.innerHTML=""; profiles.forEach((p,i)=>{ const div=document.createElement("div"); div.className="item"; div.textContent="👶 "+p.name; div.onclick=()=>openProfile(i); profileList.appendChild(div); }); }
-function openProfile(i){ currentProfile=profiles[i]; profileView.classList.add("hidden"); bookView.classList.remove("hidden"); renderBooks(); }
-function backToProfiles(){ bookView.classList.add("hidden"); editorView.classList.add("hidden"); profileView.classList.remove("hidden"); }
-function createBook(){ currentProfile.books.push({title:"Neues Buch",text:""}); save(); renderBooks(); }
-function renderBooks(){ bookList.innerHTML=""; currentProfile.books.forEach((b,i)=>{ const div=document.createElement("div"); div.className="item"; div.textContent="📖 "+b.title; div.onclick=()=>openBook(i); bookList.appendChild(div); }); }
-function openBook(i){ currentBook=currentProfile.books[i]; bookView.classList.add("hidden"); editorView.classList.remove("hidden"); bookTitle.value=currentBook.title; text.value=currentBook.text; renderPreview(); }
-function closeEditor(){ editorView.classList.add("hidden"); bookView.classList.remove("hidden"); }
-function saveBook(){ currentBook.title=bookTitle.value; currentBook.text=text.value; save(); closeEditor(); }
-function insertChapter(){ const t=prompt("Kapitelname"); if(!t) return; const pos=text.selectionStart; const insert="\n\n##CHAPTER##"+t+"\n\n"; text.value=text.value.slice(0,pos)+insert+text.value.slice(pos); renderPreview(); }
+/* FUNCTIONS */
+
+function save(){ localStorage.setItem("profiles", JSON.stringify(profiles)); }
+
+function createProfile(){
+    const name = profileInput.value.trim();
+    if(!name) return;
+    profiles.push({name, books:[]});
+    save();
+    profileInput.value="";
+    renderProfiles();
+}
+
+function renderProfiles(){
+    profileList.innerHTML="";
+    profiles.forEach((p,i)=>{
+        const div=document.createElement("div");
+        div.className="item";
+        div.textContent="👶 "+p.name;
+        div.onclick=()=>openProfile(i);
+        profileList.appendChild(div);
+    });
+}
+
+function openProfile(i){
+    currentProfile = profiles[i];
+    profileView.classList.add("hidden");
+    bookView.classList.remove("hidden");
+    renderBooks();
+}
+
+function backToProfiles(){
+    bookView.classList.add("hidden");
+    editorView.classList.add("hidden");
+    profileView.classList.remove("hidden");
+}
+
+function createBook(){
+    currentProfile.books.push({title:"Neues Buch", text:""});
+    save();
+    renderBooks();
+}
+
+function renderBooks(){
+    bookList.innerHTML="";
+    currentProfile.books.forEach((b,i)=>{
+        const div=document.createElement("div");
+        div.className="item";
+        div.textContent="📖 "+b.title;
+        div.onclick=()=>openBook(i);
+        bookList.appendChild(div);
+    });
+}
+
+function openBook(i){
+    currentBook = currentProfile.books[i];
+    bookView.classList.add("hidden");
+    editorView.classList.remove("hidden");
+    bookTitle.value = currentBook.title;
+    text.value = currentBook.text;
+    renderPreview();
+}
+
+function closeEditor(){
+    editorView.classList.add("hidden");
+    bookView.classList.remove("hidden");
+}
+
+function saveBook(){
+    currentBook.title = bookTitle.value;
+    currentBook.text = text.value;
+    save();
+    closeEditor();
+}
+
+function insertChapter(){
+    const t = prompt("Kapitelname");
+    if(!t) return;
+    const pos = text.selectionStart;
+    text.value = text.value.slice(0,pos) + "\n\n##CHAPTER##"+t+"\n\n" + text.value.slice(pos);
+    renderPreview();
+}
+
 function escapeHTML(str){ return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
-function renderPreview(){ const parts=text.value.split("##CHAPTER##"); const html=[]; parts.forEach((part,i)=>{ const lines=part.split("\n"); lines.forEach(line=>{ const safe=escapeHTML(line); if(line.trim().startsWith("#")){ html.push(`<div class="chapter">${safe.replace("#","")}</div
+
+function renderPreview(){
+    const parts = text.value.split("##CHAPTER##");
+    let html = "";
+    parts.forEach((part,i)=>{
+        const lines = part.split("\n");
+        lines.forEach(l=>{
+            const safe = escapeHTML(l);
+            if(l.trim().startsWith("#")){
+                html += "<div class='chapter'>"+safe.replace("#","")+"</div>";
